@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestor - Duplicatas + Alarme Corrigido</title>
+<style>
+*{box-sizing:border-box} body{font-family:Arial,sans-serif;background:#0b0e14;color:#e5e7eb;margin:0;padding:12px;font-size:13px}
+.container{max-width:1350px;margin:0 auto}.header{text-align:center;margin:10px 0 14px 0}.header h1{margin:0;font-size:18px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px} @media(max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:#151a28;border:1px solid #222a3d;padding:14px;border-radius:10px}.card h2{margin:0 0 10px 0;font-size:13px;text-transform:uppercase;color:#9ca3af}
+input,textarea{width:100%;padding:7px 9px;margin:4px 0;border-radius:6px;border:1px solid #26304a;background:#0f1320;color:#fff;font-size:12px;outline:none}
+textarea{height:48px;resize:none}.row{display:flex;gap:6px}.row input{flex:1} label{font-size:11px;color:#9ca3af}
+button{padding:6px 10px;border-radius:6px;border:none;cursor:pointer;font-weight:700;font-size:11px}
+.btn-green{background:#22c55e;color:#000}.btn-red{background:#ef4444;color:#fff}.btn-yellow{background:#1f2937;color:#f59e0b;border:1px solid #2a3248}.btn-blue{background:#3b82f6;color:#fff}.btn-gray{background:#1f2937;color:#fff;border:1px solid #2a3248}.btn-small{padding:4px 8px;font-size:10px}
+.btn-orange{background:#f59e0b;color:#000}
+.btn-copy{background:#1f2937;color:#9ca3af;border:1px solid #2a3248;padding:2px 6px;border-radius:4px;cursor:pointer;font-size:11px}
+.btn-copy:hover{color:#fff;border-color:#22c55e}
+table{width:100%;border-collapse:collapse;font-size:11.5px} th{color:#6b7280;padding:6px 8px;font-size:10px;text-align:left;text-transform:uppercase;position:sticky;top:0;background:#151a28;z-index:2} td{padding:7px 8px;border-top:1px solid #1e2538}
+.saldo-alto{color:#ef4444!important;font-weight:900;background:rgba(239,68,68,.2)!important}
+.saldo-500{color:#f59e0b!important;font-weight:900;background:rgba(245,158,11,.25)!important}
+.duplicada{background:rgba(239,68,68,.35)!important;border-left:4px solid #ef4444!important}
+.duplicada td{color:#ef4444!important;text-decoration:line-through!important}
+.dados-errados{background:rgba(34,197,94,.35)!important;border-left:4px solid #22c55e!important}
+.dados-errados td{color:#22c55e!important;text-decoration:line-through!important;font-weight:900}
+.scroll-box{max-height:380px;overflow-y:auto;border:1px solid #1e2538;border-radius:6px;margin-top:8px;background:#0b0e14}
+.scroll-box-large{max-height:500px;overflow-y:auto;border:1px solid #1e2538;border-radius:6px;margin-top:8px;background:#0b0e14}
+@keyframes piscar{0%{opacity:1}50%{opacity:0.3}100%{opacity:1}} 
+#log,#formpreeLog{background:#080a10;border:1px solid #1e2538;border-radius:6px;margin-top:8px;padding:8px;height:110px;overflow:auto;font-size:10.5px}
+#alarmeBox,#formpreeAlarmeBox{display:none;padding:10px 12px;border-radius:6px;margin-top:8px;font-weight:900;font-size:13px}
+#alarmeBox{background:#ef4444;color:#fff;animation:piscar 0.4s infinite}
+#formpreeAlarmeBox{background:#f59e0b;color:#000;animation:piscar 0.5s infinite;border:2px solid #fff}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>🐘 Gestor - Anti Duplicatas + Alarme Corrigido</h1></div>
+
+<div class="grid">
+<div class="card">
+<h2>Cadastrar Conta</h2>
+<div class="row"><input id="telefone" placeholder="Telefone"><input id="senha" type="text" placeholder="Senha"></div>
+<textarea id="obs" placeholder="OBS..."></textarea>
+<label><input type="checkbox" id="importante" style="width:auto"> IMPORTANTE</label>
+<div style="margin-top:8px;display:flex;gap:6px"><button class="btn-green" onclick="salvar()">Salvar</button><button class="btn-yellow" onclick="limparForm()">Cancelar</button></div>
+<div style="margin-top:10px;border-top:1px solid #222a3d;padding-top:10px;display:flex;flex-direction:column;gap:6px">
+<input type="file" id="csvInput" accept=".csv" hidden>
+<button class="btn-yellow" onclick="document.getElementById('csvInput').click()">📂 Importar CSV do Chrome</button>
+<button class="btn-gray" onclick="exportarCSV()">📤 Exportar CSV</button>
+<div id="importLog" style="font-size:10px;color:#9ca3af"></div>
+</div>
+</div>
+<div class="card">
+<h2>Automação <span id="status">PARADA</span> - <span id="modoTxt" style="color:#f59e0b">AUTO</span></h2>
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+<input id="inicioConta" type="number" min="1" value="1" style="width:70px">
+<button class="btn-blue" onclick="startAuto()">🤖 Auto</button>
+<button class="btn-yellow" onclick="startManual()">👆 Manual</button>
+<button id="btnProxima" class="btn-green" style="display:none" onclick="proximaConta()">⏭ Próxima</button>
+<button class="btn-red" onclick="stopBot()">STOP</button>
+<button id="stopAlarme" class="btn-yellow" style="display:none" onclick="pararAlarme()">🔇 Parar Alarme</button>
+</div>
+<div id="contaAtual" style="font-size:11px;margin-top:6px;font-weight:600"></div>
+<div id="alarmeBox">🚨 SALDO 200 Kz+ : <span id="alarmeTexto"></span> 🚨</div>
+<div id="log"></div>
+</div>
+</div>
+
+<div class="grid" style="margin-top:12px">
+<div class="card" style="border-left:3px solid #3b82f6">
+<h2>🌐 Formpree <span id="formpreeStatusTxt" style="color:#ef4444">FECHADO</span></h2>
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+<button class="btn-blue" onclick="startFormpree()">🌐 Abrir Navegador Formpree</button>
+<button class="btn-red btn-small" onclick="stopFormpree()">Fechar</button>
+<button class="btn-yellow btn-small" onclick="checkFormpreeNow()">🔍 Verificar Agora (LEVE)</button>
+</div>
+<div id="formpreeUrl" style="font-size:10px;color:#6b7280;margin-top:6px;word-break:break-all"></div>
+<div id="formpreeContaAtual" style="font-size:11px;margin-top:6px;font-weight:700;color:#3b82f6"></div>
+<div id="formpreeAlarmeBox">🚨 FORMPREE 200Kz+ : <span id="formpreeAlarmeTexto"></span> 🚨</div>
+<div style="font-size:10px;color:#9ca3af;margin-top:6px">✅ Botão eliminar duplicatas | Laranja sem piscar | Alarme não repete mesma conta</div>
+<div id="formpreeLog"></div>
+</div>
+
+<div class="card" style="border-left:3px solid #22c55e">
+<h2>📥 Submissões Formpree <span id="totalFormpree" style="color:#6b7280"></span></h2>
+<div class="scroll-box">
+<table><thead><tr><th>Contacto</th><th>Mensagem (Senha)</th><th>Saldo</th><th>Status</th></tr></thead><tbody id="listaFormpree"></tbody></table>
+</div>
+</div>
+</div>
+
+<div class="card" style="margin-top:12px">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+<h2>Contas ElephantBet <span id="totalContas" style="color:#6b7280"></span> <span style="color:#22c55e;font-size:10px">■ Verde=Já cadastrado</span> <span style="color:#ef4444;font-size:10px">■ Vermelho=Duplicada riscada</span></h2>
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+<button class="btn-orange btn-small" onclick="eliminarRepetidas()">🧹 Eliminar Repetidas (mantém 1)</button>
+<button class="btn-yellow btn-small" onclick="desmarcarVerdes()">✅ Desmarcar Verdes</button>
+<button class="btn-red btn-small" onclick="eliminarTodas()">🗑 Eliminar Todas</button>
+</div>
+</div>
+<div id="infoDuplicatas" style="font-size:11px;color:#f59e0b;margin-top:6px"></div>
+<div class="scroll-box-large">
+<table><thead><tr><th>#</th><th>Telefone</th><th>Senha</th><th>Saldo</th><th>OBS</th><th></th><th>Ações</th></tr></thead><tbody id="lista"></tbody></table>
+</div>
+</div>
+</div>
+<script>
+const LIMITE_ALARME = 200;
+let editId=null, contasCache=[], audioCtx=null, alarmInterval=null;
+let alarmesMutados = new Set();
+let ultimoAlarmeTel=null;
+
+function limparTelefone(tel){ let dig=String(tel||'').replace(/\D/g,''); if(dig.startsWith('244')) dig=dig.substring(3); if(dig.length>9) dig=dig.slice(-9); return dig; }
+function parseSaldo(str){ if(!str) return 0; const up=String(str).toUpperCase(); if(up.includes('DADOS')||up.includes('INVÁLIDA')||up.includes('INVALIDA')||up.includes('NÃO CADASTRADO')||up.includes('VERIFICANDO')||up.includes('FILA')) return 0; let num=String(str).replace(/[^0-9.,]/g,''); if(num.includes('.')&&num.includes(',')) num=num.replace(/\./g,'').replace(',','.'); else if(num.includes(',')) num=num.replace(',','.'); return parseFloat(num)||0; }
+function escAttr(s){ return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function copiarTexto(texto, btn){ if(!texto) return; const fb=()=>{ if(btn){ const o=btn.innerHTML; btn.innerHTML='✅'; btn.style.borderColor='#22c55e'; setTimeout(()=>{ btn.innerHTML=o; btn.style.borderColor=''; },1200); } }; if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(texto).then(fb); } }
+function extrairTel(telCompleto){ let tel = String(telCompleto).replace(/\[.*?\]/g,'').trim(); const match = tel.match(/9\d{8}/); if(match) return match[0]; return tel.split(' ').pop().trim(); }
+function tocarAlarme(saldo, telCompleto){ let tel = extrairTel(telCompleto); if(!tel) return; if(alarmesMutados.has(tel)) return; document.getElementById('alarmeBox').style.display='block'; document.getElementById('alarmeTexto').innerText=tel+' - '+saldo; document.getElementById('stopAlarme').style.display='inline-block'; ultimoAlarmeTel=tel; if(audioCtx) return; audioCtx=new (window.AudioContext||window.webkitAudioContext)(); function beep(){ const o=audioCtx.createOscillator(); const g=audioCtx.createGain(); o.type='sine'; o.frequency.value=1200; o.connect(g); g.connect(audioCtx.destination); g.gain.setValueAtTime(0.9,audioCtx.currentTime); o.start(); o.stop(audioCtx.currentTime+0.25); } beep(); alarmInterval=setInterval(beep,400); }
+function tocarAlarmeFormpree(saldo, tel){ let telLimpo = extrairTel(tel); if(alarmesMutados.has(telLimpo)) return; document.getElementById('formpreeAlarmeBox').style.display='block'; document.getElementById('formpreeAlarmeTexto').innerText=tel+' - '+saldo; tocarAlarme(saldo,tel); }
+function pararAlarme(){ clearInterval(alarmInterval); if(audioCtx){ try{ audioCtx.close(); }catch{} audioCtx=null; } document.getElementById('alarmeBox').style.display='none'; document.getElementById('stopAlarme').style.display='none'; document.getElementById('formpreeAlarmeBox').style.display='none'; if(ultimoAlarmeTel){ alarmesMutados.add(ultimoAlarmeTel); } try{ contasCache.forEach(c=>{ if(parseSaldo(c.saldo) >= LIMITE_ALARME){ alarmesMutados.add(c.telefone); } }); }catch{} }
+
+// NOVA FUNÇÃO: ELIMINAR REPETIDAS COM JAVASCRIPT
+async function eliminarRepetidas(){
+  if(!confirm('Eliminar contas repetidas? Vai manter só a primeira de cada telefone.')) return;
+  const res = await fetch('/api/contas/limpar-duplicadas', {method:'POST'});
+  const data = await res.json();
+  if(data.ok){
+    alert(`${data.removidas} contas repetidas eliminadas! Mantive só 1 de cada.`);
+    carregar();
+  } else {
+    alert('Erro: ' + (data.erro||'desconhecido'));
+  }
+}
+
+async function carregar(){
+  const r=await fetch('/api/contas'); contasCache=await r.json();
+  document.getElementById('totalContas').innerText=`(${contasCache.length})`;
+  // DETECTA DUPLICADAS COM JS
+  const contagem = {};
+  contasCache.forEach(c=>{ contagem[c.telefone] = (contagem[c.telefone]||0)+1; });
+  const totalDuplicadas = Object.values(contagem).filter(v=>v>1).reduce((a,b)=>a+(b-1),0);
+  const telefonesDuplicados = Object.keys(contagem).filter(t=>contagem[t]>1);
+  if(totalDuplicadas>0){
+    document.getElementById('infoDuplicatas').innerHTML = `⚠️ <b style="color:#ef4444">${totalDuplicadas} contas repetidas detectadas</b> - Telefones: ${telefonesDuplicados.slice(0,5).join(', ')}${telefonesDuplicados.length>5?'...':''} - Clique em <b>Eliminar Repetidas</b> - As repetidas estão riscadas em vermelho`;
+  } else {
+    document.getElementById('infoDuplicatas').innerHTML = `✅ Nenhuma repetida - todas únicas`;
+  }
+  const vistos = new Set();
+  let achouAlto=null; let achouTel=null;
+  document.getElementById('lista').innerHTML=contasCache.map((c,idx)=>{
+    const up=(c.saldo||'').toString().toUpperCase();
+    const ehErro=c.erro==1||up.includes('DADOS');
+    const valor=parseSaldo(c.saldo);
+    const ehAlto=!ehErro&&valor>=LIMITE_ALARME;
+    const ehDuplicada = vistos.has(c.telefone);
+    // Marca como vista após checar
+    const primeiraVez = !vistos.has(c.telefone);
+    if(primeiraVez) vistos.add(c.telefone);
+    // Para alarme, só primeira
+    if(ehAlto&&!achouAlto&&!alarmesMutados.has(c.telefone)&&!ehDuplicada){
+      achouAlto={saldo:c.saldo, tel:c.telefone}; achouTel=c.telefone;
+    }
+    let classe = '';
+    if(ehDuplicada) classe = 'duplicada';
+    else if(ehAlto) classe = 'saldo-500';
+    else if(ehErro) classe = 'dados-errados';
+    else if(c.importante) classe = 'importante';
+    return `<tr class="${classe}"><td>${idx+1}</td><td><div style="display:flex;align-items:center;gap:5px"><span>${c.telefone}</span><button class="btn-copy" data-v="${escAttr(c.telefone)}" onclick="copiarTexto(this.dataset.v,this)">📋</button>${ehDuplicada?'<span style="color:#ef4444;font-size:9px"> REPETIDA</span>':''}</div></td><td style="font-family:monospace"><span>${escAttr(c.senha)}</span><button class="btn-copy" data-v="${escAttr(c.senha)}" onclick="copiarTexto(this.dataset.v,this)">📋</button></td><td>${c.saldo||'0 Kz'}</td><td>${ehErro?'❌ DADOS INCORRECTOS':(c.obs||'')}</td><td>${c.importante?'⭐':''}</td><td style="display:flex;gap:4px"><button class="btn-yellow btn-small" onclick="editar(${c.id})">Editar</button><button class="btn-red btn-small" onclick="excluir(${c.id})">X</button></td></tr>`;
+  }).join('');
+  if(achouAlto && !alarmesMutados.has(achouTel)){
+    tocarAlarme(achouAlto.saldo, achouAlto.tel);
+  }
+}
+function editar(id){ const c=contasCache.find(x=>x.id===id); if(!c) return; editId=c.id; telefone.value=c.telefone; senha.value=c.senha; obs.value=c.obs||''; importante.checked=!!c.importante; window.scrollTo({top:0,behavior:'smooth'}); }
+function limparForm(){ editId=null; telefone.value=''; senha.value=''; obs.value=''; importante.checked=false; }
+async function salvar(){ const body={telefone:limparTelefone(telefone.value.trim()), senha:senha.value.trim(), obs:obs.value.trim(), importante:importante.checked}; if(!body.telefone||!body.senha) return alert('Preenche'); if(body.senha.length>40||body.senha.toLowerCase().includes('_date')) return alert('Senha inválida'); const url=editId?`/api/contas/${editId}`:'/api/contas'; const method=editId?'PUT':'POST'; const res=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const data=await res.json(); if(data.jaExiste) alert('Número já existe!'); limparForm(); carregar(); }
+async function excluir(id){ if(!confirm('Excluir?')) return; await fetch(`/api/contas/${id}`,{method:'DELETE'}); carregar(); }
+async function eliminarTodas(){ if(contasCache.length===0) return alert('Nenhuma'); const senha=prompt('🔒 Senha para APAGAR TUDO:'); if(senha!=='123456') return; if(!confirm(`Apagar ${contasCache.length}?`)) return; await fetch('/api/contas',{method:'DELETE'}); alarmesMutados.clear(); pararAlarme(); carregar(); }
+async function desmarcarVerdes(){ const verdes=contasCache.filter(c=>c.erro==1); for(const c of verdes){ await fetch(`/api/contas/${c.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone:c.telefone,senha:c.senha,obs:c.obs||'',importante:!!c.importante})}); } carregar(); }
+async function startManual(){ alarmesMutados.clear(); const inicio=document.getElementById('inicioConta').value||1; await fetch('/api/automacao/manual/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inicio:parseInt(inicio)})}); document.getElementById('btnProxima').style.display='inline-block'; }
+async function proximaConta(){ await fetch('/api/automacao/manual/next',{method:'POST'}); }
+async function startAuto(){ alarmesMutados.clear(); const inicio=document.getElementById('inicioConta').value||1; await fetch('/api/automacao/auto/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inicio:parseInt(inicio)})}); document.getElementById('btnProxima').style.display='none'; }
+async function stopBot(){ await fetch('/api/automacao/stop',{method:'POST'}); document.getElementById('btnProxima').style.display='none'; }
+async function startFormpree(){ alarmesMutados.clear(); await fetch('/api/formpree/start',{method:'POST'}); document.getElementById('formpreeStatusTxt').innerText='ABRINDO...'; }
+async function stopFormpree(){ await fetch('/api/formpree/stop',{method:'POST'}); }
+async function checkFormpreeNow(){ document.getElementById('formpreeStatusTxt').innerText='LENDO...'; await fetch('/api/formpree/check',{method:'POST'}); }
+async function statusLoop(){ try{ const r=await fetch('/api/automacao/status'); const s=await r.json(); document.getElementById('status').innerText=s.rodando?'RODANDO':'PARADA'; document.getElementById('status').style.color=s.rodando?'#22c55e':'#ef4444'; document.getElementById('modoTxt').innerText=s.modo?s.modo.toUpperCase():'AUTO'; document.getElementById('contaAtual').innerText=s.conta?`→ ${s.conta}`:''; document.getElementById('log').innerHTML=(s.log||[]).join('<br>'); const v=parseSaldo((s.conta||'').split('Saldo:')[1]||''); if(v>=LIMITE_ALARME){ const telExtraido = extrairTel(s.conta||''); if(!alarmesMutados.has(telExtraido)) tocarAlarme(s.conta.split('Saldo:')[1]||v+' Kz', s.conta); } }catch(e){} }
+async function statusLoopFormpree(){
+  try{
+    const r=await fetch('/api/formpree/status'); const s=await r.json();
+    document.getElementById('formpreeStatusTxt').innerText=s.rodando?'ABERTO':'FECHADO'; document.getElementById('formpreeUrl').innerText=s.url||''; document.getElementById('formpreeContaAtual').innerText=s.conta?`→ ${s.conta}`:''; document.getElementById('formpreeLog').innerHTML=(s.log||[]).join('<br>');
+    document.getElementById('totalFormpree').innerText=`(${s.submissions?s.submissions.length:0})`;
+    const lista=s.submissions||[];
+    document.getElementById('listaFormpree').innerHTML=lista.map(item=>{
+      const tel=escAttr(item.telefoneLimpo||''); const senha=escAttr(item.mensagem||''); const saldoEB=escAttr(item.saldo||''); const valor=item.saldoValor||0; const classeSaldo=valor>=200?'saldo-500':''; const classeLinha=item.jaCadastrado?'dados-errados':''; const statusTxt=item.jaCadastrado?'✅ VERDE':'🆕';
+      return `<tr class="${classeLinha}"><td>${tel}</td><td>${senha}</td><td class="${classeSaldo}">${saldoEB} ${valor>=200?`💰 ${valor}Kz`:''}</td><td>${statusTxt}</td></tr>`;
+    }).join('');
+    if(s.conta && s.conta.includes('200Kz+')){
+      const telForm = extrairTel(s.conta);
+      if(!alarmesMutados.has(telForm)){
+        document.getElementById('formpreeAlarmeBox').style.display='block'; document.getElementById('formpreeAlarmeTexto').innerText=s.conta; tocarAlarmeFormpree(s.conta, telForm);
+      }
+    }
+  }catch(e){}
+}
+function exportarCSV(){ if(contasCache.length===0) return alert('Nenhuma'); let csv='telefone,senha,saldo\n'; contasCache.forEach(c=>{ csv+=`${c.telefone},${c.senha},${c.saldo}\n`; }); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`backup.csv`; a.click(); }
+document.getElementById('csvInput').addEventListener('change', async (e)=>{ const file=e.target.files[0]; if(!file) return; const text=await file.text(); const linhas=text.split('\n'); for(let i=1;i<linhas.length;i++){ const cols=linhas[i].split(','); const tel=limparTelefone(cols[1]||cols[0]); const senha=(cols[2]||cols[1]||'').replace(/"/g,'').trim(); if(!tel||!senha) continue; await fetch('/api/contas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone:tel,senha,obs:'Importado'})}); } carregar(); });
+setInterval(()=>{ statusLoop(); carregar(); },2000);
+setInterval(()=>{ statusLoopFormpree(); },2500);
+carregar(); statusLoop(); statusLoopFormpree();
+</script>
+</body>
+</html>
